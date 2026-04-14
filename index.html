@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang=en>
+<head>
+  <meta charset=UTF-8>
+  <meta name=viewport content=width=device-width, initial-scale=1.0>
+  <title>Flow</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #fff; overflow: hidden; font-family: 'Courier New', monospace; }
+    canvas { display: block; }
+    .label {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      color: #aaa;
+      text-transform: uppercase;
+    }
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url('data:image/svg+xml,%3Csvg viewBox=%220 0 256 256%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/%3E%3C/svg%3E');
+    }
+  </style>
+</head>
+<body>
+  <canvas id=c></canvas>
+  <div class=grain></div>
+  <div class=label>flow field — drag to disturb</div>
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    let W, H, particles = [], mouse = { x: -9999, y: -9999 };
+
+    function resize() {
+      W = canvas.width = innerWidth;
+      H = canvas.height = innerHeight;
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    const COUNT = 2200;
+    class Particle {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = Math.random() * W;
+        this.y = Math.random() * H;
+        this.vx = 0; this.vy = 0;
+        this.px = this.x; this.py = this.y;
+        this.speed = Math.random() * 0.8 + 0.2;
+      }
+      update(t) {
+        this.px = this.x; this.py = this.y;
+        const angle = (Math.sin(this.x * 0.003 + t * 0.4) + 
+                      Math.cos(this.y * 0.003 + t * 0.3)) * Math.PI * 2;
+        this.vx += Math.cos(angle) * 0.08 * this.speed;
+        this.vy += Math.sin(angle) * 0.08 * this.speed;
+        const mx = this.x - mouse.x, my = this.y - mouse.y;
+        const md = Math.sqrt(mx*mx + my*my);
+        if (md < 160) {
+          const f = (160 - md) / 160 * 2.5;
+          this.vx += (mx / md) * f;
+          this.vy += (my / md) * f;
+        }
+        this.vx *= 0.94; this.vy *= 0.94;
+        this.x += this.vx; this.y += this.vy;
+        if (this.x < 0 || this.x > W || this.y < 0 || this.y > H) this.reset();
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.moveTo(this.px, this.py);
+        ctx.lineTo(this.x, this.y);
+        ctx.strokeStyle = 'rgba(0,0,0,' + (0.12 + this.speed * 0.1) + ')';
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
+      }
+    }
+
+    for (let i = 0; i < COUNT; i++) particles.push(new Particle());
+
+    addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+    addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
+
+    const start = performance.now();
+    (function loop() {
+      const t = (performance.now() - start) / 1000;
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(0, 0, W, H);
+      for (const p of particles) { p.update(t); p.draw(); }
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
